@@ -4,7 +4,8 @@
     "method": "get",
     "toolName": "list-mail-messages",
     "scopes": ["Mail.Read"],
-    "llmTip": "CRITICAL: When searching emails, the $search parameter value MUST be wrapped in double quotes. Format: $search=\"your search query here\". Use KQL (Keyword Query Language) syntax to search specific properties: 'from:', 'subject:', 'body:', 'to:', 'cc:', 'bcc:', 'attachment:', 'hasAttachments:', 'importance:', 'received:', 'sent:'. Examples: $search=\"from:john@example.com\" | $search=\"subject:meeting AND hasAttachments:true\" | $search=\"body:urgent AND received>=2024-01-01\" | $search=\"from:john AND importance:high\". Remember: ALWAYS wrap the entire search expression in double quotes! Reference: https://learn.microsoft.com/en-us/graph/search-query-parameter IMPORTANT: Always use $select to limit returned fields and reduce response size. Recommended default: $select=id,subject,from,toRecipients,receivedDateTime,bodyPreview,isRead,hasAttachments. Use bodyPreview instead of body for listings. To read the full email body, use get-mail-message with the specific message id."
+    "blockedQueryParams": ["orderby"],
+    "llmTip": "CRITICAL: When searching emails, the $search parameter value MUST follow the following format: $search=\"your search query here\". When using the $search parameter, don't use the $orderby parameter. Use KQL (Keyword Query Language) syntax to search specific properties: 'from:', 'subject:', 'body:', 'to:', 'cc:', 'bcc:', 'attachment:', 'hasAttachments:', 'importance:', 'received:', 'sent:'. Examples: $search=\"from:john@example.com\" | $search=\"subject:meeting AND hasAttachments:true\" | $search=\"body:urgent AND received>=2024-01-01\" | $search=\"from:john AND importance:high\". Remember: ALWAYS wrap the entire search expression in double quotes! Reference: https://learn.microsoft.com/en-us/graph/search-query-parameter IMPORTANT: Always use $select to limit returned fields and reduce response size. Recommended default: $select=id,subject,from,toRecipients,receivedDateTime,bodyPreview,isRead,hasAttachments. Use bodyPreview instead of body for listings. To read the full email body, use get-mail-message with the specific message id. WORKFLOW RULE: If the user asks to draft/reply/forward the latest email, first use this tool to get the message id, then MUST call the corresponding draft/reply tool (create-reply-draft, reply-mail-message, create-forward-draft, etc.)."
   },
   {
     "pathPattern": "/me/mailFolders",
@@ -51,6 +52,7 @@
     "method": "get",
     "toolName": "list-mail-folder-messages",
     "scopes": ["Mail.Read"],
+    "blockedQueryParams": ["orderby"],
     "llmTip": "CRITICAL: When searching emails, the $search parameter value MUST be wrapped in double quotes. Format: $search=\"your search query here\". Use KQL (Keyword Query Language) syntax to search specific properties: 'from:', 'subject:', 'body:', 'to:', 'cc:', 'bcc:', 'attachment:', 'hasAttachments:', 'importance:', 'received:', 'sent:'. Examples: $search=\"from:john@example.com\" | $search=\"subject:meeting AND hasAttachments:true\" | $search=\"body:urgent AND received>=2024-01-01\" | $search=\"from:alice AND importance:high\". Remember: ALWAYS wrap the entire search expression in double quotes! Reference: https://learn.microsoft.com/en-us/graph/search-query-parameter IMPORTANT: Always use $select to limit returned fields and reduce response size. Recommended default: $select=id,subject,from,toRecipients,receivedDateTime,bodyPreview,isRead,hasAttachments. Use bodyPreview instead of body for listings. To read the full email body, use get-mail-message with the specific message id."
   },
   {
@@ -60,17 +62,11 @@
     "scopes": ["Mail.Read"]
   },
   {
-    "pathPattern": "/me/sendMail",
-    "method": "post",
-    "toolName": "send-mail",
-    "scopes": ["Mail.Send"],
-    "llmTip": "CRITICAL: Do not try to guess the email address of the recipients. Use the list-users tool to find the email address of the recipients."
-  },
-  {
     "pathPattern": "/users/{user-id}/messages",
     "method": "get",
     "toolName": "list-shared-mailbox-messages",
     "workScopes": ["Mail.Read.Shared"],
+    "blockedQueryParams": ["orderby"],
     "llmTip": "CRITICAL: When searching emails, the $search parameter value MUST be wrapped in double quotes. Format: $search=\"your search query here\". Use KQL (Keyword Query Language) syntax to search specific properties: 'from:', 'subject:', 'body:', 'to:', 'cc:', 'bcc:', 'attachment:', 'hasAttachments:', 'importance:', 'received:', 'sent:'. Examples: $search=\"from:john@example.com\" | $search=\"subject:meeting AND hasAttachments:true\" | $search=\"body:urgent AND received>=2024-01-01\" | $search=\"from:alice AND importance:high\". Remember: ALWAYS wrap the entire search expression in double quotes! Reference: https://learn.microsoft.com/en-us/graph/search-query-parameter IMPORTANT: Always use $select to limit returned fields and reduce response size. Recommended default: $select=id,subject,from,toRecipients,receivedDateTime,bodyPreview,isRead,hasAttachments. Use bodyPreview instead of body for listings. To read the full email body, use get-shared-mailbox-message with the specific message id."
   },
   {
@@ -78,6 +74,7 @@
     "method": "get",
     "toolName": "list-shared-mailbox-folder-messages",
     "workScopes": ["Mail.Read.Shared"],
+    "blockedQueryParams": ["orderby"],
     "llmTip": "CRITICAL: When searching emails, the $search parameter value MUST be wrapped in double quotes. Format: $search=\"your search query here\". Use KQL (Keyword Query Language) syntax to search specific properties: 'from:', 'subject:', 'body:', 'to:', 'cc:', 'bcc:', 'attachment:', 'hasAttachments:', 'importance:', 'received:', 'sent:'. Examples: $search=\"from:john@example.com\" | $search=\"subject:meeting AND hasAttachments:true\" | $search=\"body:urgent AND received>=2024-01-01\" | $search=\"from:alice AND importance:high\". Remember: ALWAYS wrap the entire search expression in double quotes! Reference: https://learn.microsoft.com/en-us/graph/search-query-parameter IMPORTANT: Always use $select to limit returned fields and reduce response size. Recommended default: $select=id,subject,from,toRecipients,receivedDateTime,bodyPreview,isRead,hasAttachments. Use bodyPreview instead of body for listings. To read the full email body, use get-shared-mailbox-message with the specific message id."
   },
   {
@@ -87,41 +84,15 @@
     "workScopes": ["Mail.Read.Shared"]
   },
   {
-    "pathPattern": "/users/{user-id}/sendMail",
-    "method": "post",
-    "toolName": "send-shared-mailbox-mail",
-    "workScopes": ["Mail.Send.Shared"],
-    "llmTip": "CRITICAL: Do not try to guess the email address of the recipients. Use the list-users tool to find the email address of the recipients."
-  },
-  {
-    "pathPattern": "/users",
-    "method": "get",
-    "toolName": "list-users",
-    "workScopes": ["User.Read.All"],
-    "llmTip": "CRITICAL: This request requires the ConsistencyLevel header set to eventual. When searching users, the $search parameter value MUST be wrapped in double quotes. Format: $search=\"your search query here\". Use KQL (Keyword Query Language) syntax to search specific properties: 'displayName:'. Examples: $search=\"displayName:john\" | $search=\"displayName:john\" OR \"displayName:jane\". Remember: ALWAYS wrap the entire search expression in double quotes and set the ConsistencyLevel header to eventual! Reference: https://learn.microsoft.com/en-us/graph/search-query-parameter"
-  },
-  {
     "pathPattern": "/me/messages",
     "method": "post",
     "toolName": "create-draft-email",
     "scopes": ["Mail.ReadWrite"]
   },
   {
-    "pathPattern": "/me/messages/{message-id}",
-    "method": "delete",
-    "toolName": "delete-mail-message",
-    "scopes": ["Mail.ReadWrite"]
-  },
-  {
     "pathPattern": "/me/messages/{message-id}/move",
     "method": "post",
     "toolName": "move-mail-message",
-    "scopes": ["Mail.ReadWrite"]
-  },
-  {
-    "pathPattern": "/me/messages/{message-id}",
-    "method": "patch",
-    "toolName": "update-mail-message",
     "scopes": ["Mail.ReadWrite"]
   },
   {
@@ -143,56 +114,25 @@
     "scopes": ["Mail.Read"]
   },
   {
-    "pathPattern": "/me/messages/{message-id}/attachments/{attachment-id}",
-    "method": "delete",
-    "toolName": "delete-mail-attachment",
-    "scopes": ["Mail.ReadWrite"]
-  },
-  {
-    "pathPattern": "/me/messages/{message-id}/forward",
-    "method": "post",
-    "toolName": "forward-mail-message",
-    "scopes": ["Mail.Send"],
-    "llmTip": "Forward an email preserving full HTML formatting and attachments. The 'comment' field adds text above the forwarded content. toRecipients is required. Do NOT reconstruct the email manually - this endpoint handles everything server-side."
-  },
-  {
-    "pathPattern": "/me/messages/{message-id}/reply",
-    "method": "post",
-    "toolName": "reply-mail-message",
-    "scopes": ["Mail.Send"],
-    "llmTip": "Reply to an email preserving full HTML formatting. The 'comment' field is your reply text. Do NOT reconstruct the email manually."
-  },
-  {
-    "pathPattern": "/me/messages/{message-id}/replyAll",
-    "method": "post",
-    "toolName": "reply-all-mail-message",
-    "scopes": ["Mail.Send"],
-    "llmTip": "Reply-all preserving full HTML formatting. The 'comment' field is your reply text."
-  },
-  {
     "pathPattern": "/me/messages/{message-id}/createForward",
     "method": "post",
     "toolName": "create-forward-draft",
     "scopes": ["Mail.ReadWrite"],
-    "llmTip": "Create a forward draft (does not send). Useful when user wants to review before sending."
+    "llmTip": "CRITICAL: Use this tool when the user asks to draft (not send) a forward. Provide the message id and body.Comment. Do NOT output only a manual draft template."
   },
   {
     "pathPattern": "/me/messages/{message-id}/createReply",
     "method": "post",
     "toolName": "create-reply-draft",
-    "scopes": ["Mail.ReadWrite"]
+    "scopes": ["Mail.ReadWrite"],
+    "llmTip": "CRITICAL: Use this tool when the user asks to draft (not send) a reply to an existing email. First fetch the message id (for example with list-mail-messages search + top=1), then call create-reply-draft with messageId and body.Comment. Do NOT output only a manual draft template."
   },
   {
     "pathPattern": "/me/messages/{message-id}/createReplyAll",
     "method": "post",
     "toolName": "create-reply-all-draft",
-    "scopes": ["Mail.ReadWrite"]
-  },
-  {
-    "pathPattern": "/me/messages/{message-id}/send",
-    "method": "post",
-    "toolName": "send-draft-message",
-    "scopes": ["Mail.Send"]
+    "scopes": ["Mail.ReadWrite"],
+    "llmTip": "CRITICAL: Use this tool when the user asks to draft (not send) a reply-all. First fetch the message id, then call create-reply-all-draft with messageId and body.Comment. Do NOT output only a manual draft template."
   },
   {
     "pathPattern": "/me/events",
@@ -306,123 +246,6 @@
     "workScopes": ["Calendars.Read.Shared"]
   },
   {
-    "pathPattern": "/me/drives",
-    "method": "get",
-    "toolName": "list-drives",
-    "scopes": ["Files.Read"]
-  },
-  {
-    "pathPattern": "/drives/{drive-id}/root",
-    "method": "get",
-    "toolName": "get-drive-root-item",
-    "scopes": ["Files.Read"]
-  },
-  {
-    "pathPattern": "/drives/{drive-id}/root",
-    "method": "get",
-    "toolName": "get-root-folder",
-    "scopes": ["Files.Read"]
-  },
-  {
-    "pathPattern": "/drives/{drive-id}/items/{driveItem-id}/children",
-    "method": "get",
-    "toolName": "list-folder-files",
-    "scopes": ["Files.Read"]
-  },
-  {
-    "pathPattern": "/drives/{drive-id}/items/{driveItem-id}/content",
-    "method": "get",
-    "toolName": "download-onedrive-file-content",
-    "scopes": ["Files.Read"],
-    "returnDownloadUrl": true
-  },
-  {
-    "pathPattern": "/drives/{drive-id}/items/{driveItem-id}",
-    "method": "delete",
-    "toolName": "delete-onedrive-file",
-    "scopes": ["Files.ReadWrite"]
-  },
-  {
-    "pathPattern": "/drives/{drive-id}/items/{driveItem-id}/content",
-    "method": "put",
-    "toolName": "upload-file-content",
-    "scopes": ["Files.ReadWrite"]
-  },
-  {
-    "pathPattern": "/drives/{drive-id}/items/{driveItem-id}/workbook/worksheets/{workbookWorksheet-id}/charts/add",
-    "method": "post",
-    "toolName": "create-excel-chart",
-    "isExcelOp": true,
-    "scopes": ["Files.ReadWrite"]
-  },
-  {
-    "pathPattern": "/drives/{drive-id}/items/{driveItem-id}/workbook/worksheets/{workbookWorksheet-id}/range()/format",
-    "method": "patch",
-    "toolName": "format-excel-range",
-    "isExcelOp": true,
-    "scopes": ["Files.ReadWrite"]
-  },
-  {
-    "pathPattern": "/drives/{drive-id}/items/{driveItem-id}/workbook/worksheets/{workbookWorksheet-id}/range()/sort",
-    "method": "patch",
-    "toolName": "sort-excel-range",
-    "isExcelOp": true,
-    "scopes": ["Files.ReadWrite"]
-  },
-  {
-    "pathPattern": "/drives/{drive-id}/items/{driveItem-id}/workbook/worksheets/{workbookWorksheet-id}/range(address='{address}')",
-    "method": "get",
-    "toolName": "get-excel-range",
-    "isExcelOp": true,
-    "scopes": ["Files.Read"],
-    "skipEncoding": ["address"]
-  },
-  {
-    "pathPattern": "/drives/{drive-id}/items/{driveItem-id}/workbook/worksheets",
-    "method": "get",
-    "toolName": "list-excel-worksheets",
-    "isExcelOp": true,
-    "scopes": ["Files.Read"]
-  },
-  {
-    "pathPattern": "/me/onenote/notebooks",
-    "method": "get",
-    "toolName": "list-onenote-notebooks",
-    "scopes": ["Notes.Read"]
-  },
-  {
-    "pathPattern": "/me/onenote/notebooks/{notebook-id}/sections",
-    "method": "get",
-    "toolName": "list-onenote-notebook-sections",
-    "scopes": ["Notes.Read"]
-  },
-  {
-    "pathPattern": "/me/onenote/sections/{onenoteSection-id}/pages",
-    "method": "get",
-    "toolName": "list-onenote-section-pages",
-    "scopes": ["Notes.Read"]
-  },
-  {
-    "pathPattern": "/me/onenote/pages/{onenotePage-id}/content",
-    "method": "get",
-    "toolName": "get-onenote-page-content",
-    "scopes": ["Notes.Read"]
-  },
-  {
-    "pathPattern": "/me/onenote/pages",
-    "method": "post",
-    "toolName": "create-onenote-page",
-    "scopes": ["Notes.Create"],
-    "contentType": "text/html"
-  },
-  {
-    "pathPattern": "/me/onenote/sections/{onenoteSection-id}/pages",
-    "method": "post",
-    "toolName": "create-onenote-section-page",
-    "scopes": ["Notes.Create"],
-    "contentType": "text/html"
-  },
-  {
     "pathPattern": "/me/todo/lists",
     "method": "get",
     "toolName": "list-todo-task-lists",
@@ -457,6 +280,7 @@
     "method": "delete",
     "toolName": "delete-todo-task",
     "scopes": ["Tasks.ReadWrite"]
+<<<<<<< Updated upstream
   },
   {
     "pathPattern": "/me/planner/tasks",
@@ -780,5 +604,7 @@
     "method": "post",
     "toolName": "reply-to-group-thread",
     "workScopes": ["Group.ReadWrite.All"]
+=======
+>>>>>>> Stashed changes
   }
 ]
