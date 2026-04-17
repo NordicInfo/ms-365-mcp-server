@@ -41,13 +41,6 @@
     "llmTip": "Renames a mail folder by updating its displayName. Use list-mail-folders to find the folder ID."
   },
   {
-    "pathPattern": "/me/mailFolders/{mailFolder-id}",
-    "method": "delete",
-    "toolName": "delete-mail-folder",
-    "scopes": ["Mail.ReadWrite"],
-    "llmTip": "Deletes a mail folder and all its contents. This action is irreversible. Use list-mail-folders to find the folder ID."
-  },
-  {
     "pathPattern": "/me/mailFolders/{mailFolder-id}/messages",
     "method": "get",
     "toolName": "list-mail-folder-messages",
@@ -165,12 +158,6 @@
     "llmTip": "CRITICAL: Do not try to guess the email address of the recipients. Use the list-users tool to find the email address of the recipients."
   },
   {
-    "pathPattern": "/me/events/{event-id}",
-    "method": "delete",
-    "toolName": "delete-calendar-event",
-    "scopes": ["Calendars.ReadWrite"]
-  },
-  {
     "pathPattern": "/me/calendars/{calendar-id}/events",
     "method": "get",
     "toolName": "list-specific-calendar-events",
@@ -199,12 +186,6 @@
     "toolName": "update-specific-calendar-event",
     "scopes": ["Calendars.ReadWrite"],
     "llmTip": "CRITICAL: Do not try to guess the email address of the recipients. Use the list-users tool to find the email address of the recipients."
-  },
-  {
-    "pathPattern": "/me/calendars/{calendar-id}/events/{event-id}",
-    "method": "delete",
-    "toolName": "delete-specific-calendar-event",
-    "scopes": ["Calendars.ReadWrite"]
   },
   {
     "pathPattern": "/me/calendarView",
@@ -275,10 +256,4 @@
     "toolName": "update-todo-task",
     "scopes": ["Tasks.ReadWrite"]
   },
-  {
-    "pathPattern": "/me/todo/lists/{todoTaskList-id}/tasks/{todoTask-id}",
-    "method": "delete",
-    "toolName": "delete-todo-task",
-    "scopes": ["Tasks.ReadWrite"]
-  }
 ]
