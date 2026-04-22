@@ -255,5 +255,5 @@
     "method": "patch",
     "toolName": "update-todo-task",
     "scopes": ["Tasks.ReadWrite"]
-  },
+  }
 ]
