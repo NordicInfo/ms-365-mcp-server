@@ -87,6 +87,116 @@ interface CallToolResult {
   [key: string]: unknown;
 }
 
+const OUTGOING_MAIL_MESSAGE_TOOLS = new Set([
+  'create-draft-email',
+  'create-forward-draft',
+  'create-reply-draft',
+  'create-reply-all-draft',
+]);
+
+const DIRECT_MAIL_SEND_TOOL_ALIASES = new Set([
+  'send-mail',
+  'send-message',
+  'reply-mail-message',
+  'reply-all-mail-message',
+  'forward-mail-message',
+]);
+
+const OUTGOING_MAIL_HTML_TIP =
+  'For outgoing email bodies, use message.body.contentType="HTML" and structure message.body.content with simple HTML tags such as <p>, <br>, <ul>, and <li>. Plain-text paragraphs are automatically converted to HTML before sending.';
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function containsHtmlMarkup(value: string): boolean {
+  return /<\/?[a-z][\s\S]*>/i.test(value);
+}
+
+function plainTextToHtml(value: string): string {
+  const normalized = value.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+
+  if (!normalized) {
+    return '';
+  }
+
+  return normalized
+    .split(/\n{2,}/)
+    .map((paragraph) => {
+      const content = paragraph
+        .split('\n')
+        .map((line) => escapeHtml(line))
+        .join('<br>');
+      return `<p>${content}</p>`;
+    })
+    .join('');
+}
+
+function normalizeMessageBodyToHtml(message: Record<string, unknown>): Record<string, unknown> {
+  const bodyKey = isRecord(message.body) ? 'body' : isRecord(message.Body) ? 'Body' : undefined;
+  if (!bodyKey) {
+    return message;
+  }
+
+  const messageBody = message[bodyKey];
+  if (!isRecord(messageBody) || typeof messageBody.content !== 'string') {
+    return message;
+  }
+
+  const content = messageBody.content;
+  const htmlContent = containsHtmlMarkup(content) ? content : plainTextToHtml(content);
+
+  return {
+    ...message,
+    [bodyKey]: {
+      ...messageBody,
+      contentType: 'HTML',
+      content: htmlContent,
+    },
+  };
+}
+
+function normalizeOutgoingMailBody(toolAlias: string, body: unknown): unknown {
+  if (!OUTGOING_MAIL_MESSAGE_TOOLS.has(toolAlias) || !isRecord(body)) {
+    return body;
+  }
+
+  const messageKey = isRecord(body.message)
+    ? 'message'
+    : isRecord(body.Message)
+      ? 'Message'
+      : undefined;
+  if (messageKey) {
+    return {
+      ...body,
+      [messageKey]: normalizeMessageBodyToHtml(body[messageKey] as Record<string, unknown>),
+    };
+  }
+
+  return normalizeMessageBodyToHtml(body);
+}
+
+function isDirectMailSendTool(tool: (typeof api.endpoints)[0]): boolean {
+  const alias = tool.alias.toLowerCase();
+  const endpointPath = tool.path.toLowerCase();
+
+  return (
+    DIRECT_MAIL_SEND_TOOL_ALIASES.has(alias) ||
+    endpointPath.endsWith('/sendmail') ||
+    endpointPath.endsWith('/send') ||
+    /\/(reply|replyall|forward)$/.test(endpointPath)
+  );
+}
+
 async function executeGraphTool(
   tool: (typeof api.endpoints)[0],
   config: EndpointConfig | undefined,
@@ -262,6 +372,8 @@ async function executeGraphTool(
         .join('&');
       path = `${path}${path.includes('?') ? '&' : '?'}${queryString}`;
     }
+
+    body = normalizeOutgoingMailBody(tool.alias, body);
 
     const options: {
       method: string;
@@ -451,6 +563,14 @@ export function registerGraphTools(
 
   for (const tool of api.endpoints) {
     const endpointConfig = endpointsData.find((e) => e.toolName === tool.alias);
+    if (isDirectMailSendTool(tool)) {
+      logger.info(
+        `Skipping direct mail send tool ${tool.alias}; draft-only mail policy is enabled`
+      );
+      skippedCount++;
+      continue;
+    }
+
     if (!orgMode && endpointConfig && !endpointConfig.scopes && endpointConfig.workScopes) {
       logger.info(`Skipping work account tool ${tool.alias} - not in org mode`);
       skippedCount++;
@@ -538,6 +658,9 @@ export function registerGraphTools(
     if (endpointConfig?.llmTip) {
       toolDescription += `\n\n💡 TIP: ${endpointConfig.llmTip}`;
     }
+    if (OUTGOING_MAIL_MESSAGE_TOOLS.has(tool.alias)) {
+      toolDescription += `\n\n💡 TIP: ${OUTGOING_MAIL_HTML_TIP}`;
+    }
 
     try {
       server.tool(
@@ -618,6 +741,10 @@ function buildToolsRegistry(
 
   for (const tool of api.endpoints) {
     const endpointConfig = endpointsData.find((e) => e.toolName === tool.alias);
+
+    if (isDirectMailSendTool(tool)) {
+      continue;
+    }
 
     if (!orgMode && endpointConfig && !endpointConfig.scopes && endpointConfig.workScopes) {
       continue;

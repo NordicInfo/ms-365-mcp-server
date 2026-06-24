@@ -80,7 +80,7 @@ describe('Read-Only Mode', () => {
     expect(toolCalls).not.toContain('delete-mail-message');
   });
 
-  it('should register all endpoints when not in read-only mode', () => {
+  it('should register writable non-send endpoints when not in read-only mode', () => {
     vi.mocked(parseArgs).mockReturnValue({ readOnly: false } as ReturnType<typeof parseArgs>);
 
     const options = parseArgs();
@@ -88,12 +88,12 @@ describe('Read-Only Mode', () => {
 
     registerGraphTools(mockServer, {} as GraphClient, options.readOnly);
 
-    // 3 mocked endpoints + 1 parse-teams-url utility tool
-    expect(mockServer.tool).toHaveBeenCalledTimes(4);
+    // 3 mocked endpoints - 1 direct-send mail endpoint + 1 parse-teams-url utility tool
+    expect(mockServer.tool).toHaveBeenCalledTimes(3);
 
     const toolCalls = mockServer.tool.mock.calls.map((call: unknown[]) => call[0]);
     expect(toolCalls).toContain('list-mail-messages');
-    expect(toolCalls).toContain('send-mail');
+    expect(toolCalls).not.toContain('send-mail');
     expect(toolCalls).toContain('delete-mail-message');
   });
 });

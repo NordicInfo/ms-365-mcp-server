@@ -5,7 +5,7 @@
     "toolName": "list-mail-messages",
     "scopes": ["Mail.Read"],
     "blockedQueryParams": ["orderby"],
-    "llmTip": "CRITICAL: When searching emails, the $search parameter value MUST follow the following format: $search=\"your search query here\". When using the $search parameter, don't use the $orderby parameter. Use KQL (Keyword Query Language) syntax to search specific properties: 'from:', 'subject:', 'body:', 'to:', 'cc:', 'bcc:', 'attachment:', 'hasAttachments:', 'importance:', 'received:', 'sent:'. Examples: $search=\"from:john@example.com\" | $search=\"subject:meeting AND hasAttachments:true\" | $search=\"body:urgent AND received>=2024-01-01\" | $search=\"from:john AND importance:high\". Remember: ALWAYS wrap the entire search expression in double quotes! Reference: https://learn.microsoft.com/en-us/graph/search-query-parameter IMPORTANT: Always use $select to limit returned fields and reduce response size. Recommended default: $select=id,subject,from,toRecipients,receivedDateTime,bodyPreview,isRead,hasAttachments. Use bodyPreview instead of body for listings. To read the full email body, use get-mail-message with the specific message id. WORKFLOW RULE: If the user asks to draft/reply/forward the latest email, first use this tool to get the message id, then MUST call the corresponding draft/reply tool (create-reply-draft, reply-mail-message, create-forward-draft, etc.)."
+    "llmTip": "CRITICAL: When searching emails, the $search parameter value MUST follow the following format: $search=\"your search query here\". When using the $search parameter, don't use the $orderby parameter. Use KQL (Keyword Query Language) syntax to search specific properties: 'from:', 'subject:', 'body:', 'to:', 'cc:', 'bcc:', 'attachment:', 'hasAttachments:', 'importance:', 'received:', 'sent:'. Examples: $search=\"from:john@example.com\" | $search=\"subject:meeting AND hasAttachments:true\" | $search=\"body:urgent AND received>=2024-01-01\" | $search=\"from:john AND importance:high\". Remember: ALWAYS wrap the entire search expression in double quotes! Reference: https://learn.microsoft.com/en-us/graph/search-query-parameter IMPORTANT: Always use $select to limit returned fields and reduce response size. Recommended default: $select=id,subject,from,toRecipients,receivedDateTime,bodyPreview,isRead,hasAttachments. Use bodyPreview instead of body for listings. To read the full email body, use get-mail-message with the specific message id. WORKFLOW RULE: If the user asks to draft/reply/forward the latest email, first use this tool to get the message id, then MUST call the corresponding draft tool (create-reply-draft, create-reply-all-draft, create-forward-draft, etc.)."
   },
   {
     "pathPattern": "/me/mailFolders",
@@ -111,21 +111,21 @@
     "method": "post",
     "toolName": "create-forward-draft",
     "scopes": ["Mail.ReadWrite"],
-    "llmTip": "CRITICAL: Use this tool when the user asks to draft (not send) a forward. Provide the message id and body.Comment. Do NOT output only a manual draft template."
+    "llmTip": "CRITICAL: Use this tool when the user asks to draft (not send) a forward. Provide the message id and put generated multi-paragraph content in body.Message.body with contentType HTML. Avoid body.Comment for structured email text because it can lose line breaks. Do NOT output only a manual draft template."
   },
   {
     "pathPattern": "/me/messages/{message-id}/createReply",
     "method": "post",
     "toolName": "create-reply-draft",
     "scopes": ["Mail.ReadWrite"],
-    "llmTip": "CRITICAL: Use this tool when the user asks to draft (not send) a reply to an existing email. First fetch the message id (for example with list-mail-messages search + top=1), then call create-reply-draft with messageId and body.Comment. Do NOT output only a manual draft template."
+    "llmTip": "CRITICAL: Use this tool when the user asks to draft (not send) a reply to an existing email. First fetch the message id (for example with list-mail-messages search + top=1), then call create-reply-draft with messageId and put generated multi-paragraph content in body.Message.body with contentType HTML. Avoid body.Comment for structured email text because it can lose line breaks. Do NOT output only a manual draft template."
   },
   {
     "pathPattern": "/me/messages/{message-id}/createReplyAll",
     "method": "post",
     "toolName": "create-reply-all-draft",
     "scopes": ["Mail.ReadWrite"],
-    "llmTip": "CRITICAL: Use this tool when the user asks to draft (not send) a reply-all. First fetch the message id, then call create-reply-all-draft with messageId and body.Comment. Do NOT output only a manual draft template."
+    "llmTip": "CRITICAL: Use this tool when the user asks to draft (not send) a reply-all. First fetch the message id, then call create-reply-all-draft with messageId and put generated multi-paragraph content in body.Message.body with contentType HTML. Avoid body.Comment for structured email text because it can lose line breaks. Do NOT output only a manual draft template."
   },
   {
     "pathPattern": "/me/events",
