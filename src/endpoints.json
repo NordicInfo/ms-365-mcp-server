@@ -111,21 +111,21 @@
     "method": "post",
     "toolName": "create-forward-draft",
     "scopes": ["Mail.ReadWrite"],
-    "llmTip": "CRITICAL: Use this tool when the user asks to draft (not send) a forward. Provide the message id and put generated multi-paragraph content in body.Message.body with contentType HTML. Avoid body.Comment for structured email text because it can lose line breaks. Do NOT output only a manual draft template."
+    "llmTip": "CRITICAL: Use this tool when the user asks to draft (not send) a forward of an existing email. Provide the message id and put generated text in body.Message.body.content as HTML or plain text; the MCP creates the real Outlook forward draft first and prepends your generated content above the quoted forwarded history. Preserve recipients in Message.toRecipients or ToRecipients. Do NOT use create-draft-email for forwards of existing messages. Do NOT output only a manual draft template."
   },
   {
     "pathPattern": "/me/messages/{message-id}/createReply",
     "method": "post",
     "toolName": "create-reply-draft",
     "scopes": ["Mail.ReadWrite"],
-    "llmTip": "CRITICAL: Use this tool when the user asks to draft (not send) a reply to an existing email. First fetch the message id (for example with list-mail-messages search + top=1), then call create-reply-draft with messageId and put generated multi-paragraph content in body.Message.body with contentType HTML. Avoid body.Comment for structured email text because it can lose line breaks. Do NOT output only a manual draft template."
+    "llmTip": "CRITICAL: Use this tool when the user asks to draft (not send) a reply to an existing email. First fetch the message id, then call create-reply-draft with generated text in body.Message.body.content as HTML or plain text; the MCP creates the real Outlook reply draft first and prepends your generated content above the quoted thread history. Do NOT use create-draft-email for replies to existing messages. Do NOT manually fake Re: subjects. Do NOT output only a manual draft template."
   },
   {
     "pathPattern": "/me/messages/{message-id}/createReplyAll",
     "method": "post",
     "toolName": "create-reply-all-draft",
     "scopes": ["Mail.ReadWrite"],
-    "llmTip": "CRITICAL: Use this tool when the user asks to draft (not send) a reply-all. First fetch the message id, then call create-reply-all-draft with messageId and put generated multi-paragraph content in body.Message.body with contentType HTML. Avoid body.Comment for structured email text because it can lose line breaks. Do NOT output only a manual draft template."
+    "llmTip": "CRITICAL: Use this tool when the user asks to draft (not send) a reply-all to an existing email. First fetch the message id, then call create-reply-all-draft with generated text in body.Message.body.content as HTML or plain text; the MCP creates the real Outlook reply-all draft first and prepends your generated content above the quoted thread history. Do NOT use create-draft-email for replies to existing messages. Do NOT manually fake Re: subjects. Do NOT output only a manual draft template."
   },
   {
     "pathPattern": "/me/events",

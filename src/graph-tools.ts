@@ -94,6 +94,12 @@ const OUTGOING_MAIL_MESSAGE_TOOLS = new Set([
   'create-reply-all-draft',
 ]);
 
+const THREAD_PRESERVING_DRAFT_TOOLS = new Set([
+  'create-forward-draft',
+  'create-reply-draft',
+  'create-reply-all-draft',
+]);
+
 const DIRECT_MAIL_SEND_TOOL_ALIASES = new Set([
   'send-mail',
   'send-message',
@@ -107,6 +113,13 @@ const OUTGOING_MAIL_HTML_TIP =
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function getCaseInsensitiveRecordField(
+  record: Record<string, unknown>,
+  lowerCaseName: string
+): [string, unknown] | undefined {
+  return Object.entries(record).find(([key]) => key.toLowerCase() === lowerCaseName);
 }
 
 function escapeHtml(value: string): string {
@@ -139,6 +152,29 @@ function plainTextToHtml(value: string): string {
       return `<p>${content}</p>`;
     })
     .join('');
+}
+
+function encodeGraphId(id: string): string {
+  return encodeURIComponent(id).replace(/%3D/g, '=');
+}
+
+function withHtmlBodyPrefer(headers: Record<string, string>): Record<string, string> {
+  const preferHeader = headers.Prefer || headers.prefer || '';
+  const preferValues = preferHeader
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .filter((value) => !value.toLowerCase().startsWith('outlook.body-content-type='));
+  const remainingHeaders = Object.fromEntries(
+    Object.entries(headers).filter(([key]) => key.toLowerCase() !== 'prefer')
+  );
+
+  preferValues.push('outlook.body-content-type="html"');
+
+  return {
+    ...remainingHeaders,
+    Prefer: preferValues.join(', '),
+  };
 }
 
 function normalizeMessageBodyToHtml(message: Record<string, unknown>): Record<string, unknown> {
@@ -183,6 +219,156 @@ function normalizeOutgoingMailBody(toolAlias: string, body: unknown): unknown {
   }
 
   return normalizeMessageBodyToHtml(body);
+}
+
+function extractGeneratedDraftHtml(body: unknown): string | undefined {
+  if (!isRecord(body)) {
+    return undefined;
+  }
+
+  const messageEntry = getCaseInsensitiveRecordField(body, 'message');
+  if (messageEntry && isRecord(messageEntry[1])) {
+    const message = messageEntry[1];
+    const bodyEntry = getCaseInsensitiveRecordField(message, 'body');
+
+    if (bodyEntry && isRecord(bodyEntry[1])) {
+      const contentEntry = getCaseInsensitiveRecordField(bodyEntry[1], 'content');
+      const content = contentEntry?.[1];
+
+      if (typeof content === 'string' && content.trim()) {
+        return containsHtmlMarkup(content) ? content : plainTextToHtml(content);
+      }
+    }
+  }
+
+  const commentEntry = getCaseInsensitiveRecordField(body, 'comment');
+  const comment = commentEntry?.[1];
+
+  if (typeof comment === 'string' && comment.trim()) {
+    return containsHtmlMarkup(comment) ? comment : plainTextToHtml(comment);
+  }
+
+  return undefined;
+}
+
+function stripGeneratedDraftBody(body: unknown): unknown {
+  if (!isRecord(body)) {
+    return body;
+  }
+
+  const stripped: Record<string, unknown> = { ...body };
+
+  for (const key of Object.keys(stripped)) {
+    const lowerKey = key.toLowerCase();
+
+    if (lowerKey === 'comment') {
+      delete stripped[key];
+      continue;
+    }
+
+    if (lowerKey === 'message' && isRecord(stripped[key])) {
+      const message = { ...(stripped[key] as Record<string, unknown>) };
+
+      for (const messageKey of Object.keys(message)) {
+        if (messageKey.toLowerCase() === 'body') {
+          delete message[messageKey];
+        }
+      }
+
+      stripped[key] = message;
+    }
+  }
+
+  return stripped;
+}
+
+function createMcpErrorResult(message: string): CallToolResult {
+  return {
+    content: [{ type: 'text', text: JSON.stringify({ error: message }) }],
+    isError: true,
+  };
+}
+
+async function executeThreadPreservingDraftIfNeeded({
+  toolAlias,
+  path,
+  headers,
+  body,
+  graphClient,
+  accountAccessToken,
+  excludeResponse,
+}: {
+  toolAlias: string;
+  path: string;
+  headers: Record<string, string>;
+  body: unknown;
+  graphClient: GraphClient;
+  accountAccessToken?: string;
+  excludeResponse?: boolean;
+}): Promise<CallToolResult | undefined> {
+  if (!THREAD_PRESERVING_DRAFT_TOOLS.has(toolAlias)) {
+    return undefined;
+  }
+
+  const generatedHtml = extractGeneratedDraftHtml(body);
+  if (!generatedHtml) {
+    return undefined;
+  }
+
+  const baseCreateBody = stripGeneratedDraftBody(body);
+  const rawOptionsBase = accountAccessToken ? { accessToken: accountAccessToken } : {};
+
+  try {
+    const createdDraft = await graphClient.makeRequest(path, {
+      ...rawOptionsBase,
+      method: 'POST',
+      headers,
+      body: JSON.stringify(baseCreateBody),
+    });
+
+    if (!isRecord(createdDraft) || typeof createdDraft.id !== 'string' || !createdDraft.id) {
+      return createMcpErrorResult('Microsoft Graph created a draft but did not return a draft id.');
+    }
+
+    const draftPath = `/me/messages/${encodeGraphId(createdDraft.id)}`;
+    const htmlHeaders = withHtmlBodyPrefer(headers);
+
+    const draft = await graphClient.makeRequest(draftPath, {
+      ...rawOptionsBase,
+      method: 'GET',
+      headers: htmlHeaders,
+    });
+
+    if (!isRecord(draft) || !isRecord(draft.body) || typeof draft.body.content !== 'string') {
+      return createMcpErrorResult(
+        'Microsoft Graph created a draft but the draft HTML body could not be read.'
+      );
+    }
+
+    const mergedHtml = `${generatedHtml}<br>${draft.body.content}`;
+
+    await graphClient.makeRequest(draftPath, {
+      ...rawOptionsBase,
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({
+        body: {
+          contentType: 'HTML',
+          content: mergedHtml,
+        },
+      }),
+    });
+
+    const updatedDraft = await graphClient.makeRequest(draftPath, {
+      ...rawOptionsBase,
+      method: 'GET',
+      headers: htmlHeaders,
+    });
+
+    return graphClient.formatJsonResponse(updatedDraft, false, excludeResponse);
+  } catch (error) {
+    return createMcpErrorResult((error as Error).message);
+  }
 }
 
 function isDirectMailSendTool(tool: (typeof api.endpoints)[0]): boolean {
@@ -371,6 +557,20 @@ async function executeGraphTool(
         .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
         .join('&');
       path = `${path}${path.includes('?') ? '&' : '?'}${queryString}`;
+    }
+
+    const threadPreservingResult = await executeThreadPreservingDraftIfNeeded({
+      toolAlias: tool.alias,
+      path,
+      headers,
+      body,
+      graphClient,
+      accountAccessToken,
+      excludeResponse: params.excludeResponse === true,
+    });
+
+    if (threadPreservingResult) {
+      return threadPreservingResult;
     }
 
     body = normalizeOutgoingMailBody(tool.alias, body);
