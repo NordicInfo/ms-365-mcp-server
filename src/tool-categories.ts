@@ -8,7 +8,7 @@ export interface ToolCategory {
 export const TOOL_CATEGORIES: Record<string, ToolCategory> = {
   mail: {
     name: 'mail',
-    pattern: /mail|attachment|draft/i,
+    pattern: /mail|attachment|draft|outlook-categor/i,
     description: 'Email operations (read, send, manage folders, attachments)',
   },
   calendar: {

@@ -33,6 +33,11 @@ const endpointsData = JSON.parse(
   readFileSync(path.join(__dirname, 'endpoints.json'), 'utf8')
 ) as EndpointConfig[];
 
+const TOOL_REGISTRATION_PRIORITY: Record<string, number> = {
+  'list-outlook-categories': -20,
+  'create-outlook-category': -19,
+};
+
 type TextContent = {
   type: 'text';
   text: string;
@@ -761,7 +766,12 @@ export function registerGraphTools(
   let skippedCount = 0;
   let failedCount = 0;
 
-  for (const tool of api.endpoints) {
+  const orderedTools = [...api.endpoints].sort(
+    (a, b) =>
+      (TOOL_REGISTRATION_PRIORITY[a.alias] ?? 0) - (TOOL_REGISTRATION_PRIORITY[b.alias] ?? 0)
+  );
+
+  for (const tool of orderedTools) {
     const endpointConfig = endpointsData.find((e) => e.toolName === tool.alias);
     if (isDirectMailSendTool(tool)) {
       logger.info(

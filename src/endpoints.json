@@ -8,10 +8,25 @@
     "llmTip": "CRITICAL: When searching emails, the $search parameter value MUST follow the following format: $search=\"your search query here\". When using the $search parameter, don't use the $orderby parameter. Use KQL (Keyword Query Language) syntax to search specific properties: 'from:', 'subject:', 'body:', 'to:', 'cc:', 'bcc:', 'attachment:', 'hasAttachments:', 'importance:', 'received:', 'sent:'. Examples: $search=\"from:john@example.com\" | $search=\"subject:meeting AND hasAttachments:true\" | $search=\"body:urgent AND received>=2024-01-01\" | $search=\"from:john AND importance:high\". Remember: ALWAYS wrap the entire search expression in double quotes! Reference: https://learn.microsoft.com/en-us/graph/search-query-parameter IMPORTANT: Always use $select to limit returned fields and reduce response size. Recommended default: $select=id,subject,from,toRecipients,receivedDateTime,bodyPreview,isRead,hasAttachments. Use bodyPreview instead of body for listings. To read the full email body, use get-mail-message with the specific message id. WORKFLOW RULE: If the user asks to draft/reply/forward the latest email, first use this tool to get the message id, then MUST call the corresponding draft tool (create-reply-draft, create-reply-all-draft, create-forward-draft, etc.)."
   },
   {
+    "pathPattern": "/me/outlook/masterCategories",
+    "method": "get",
+    "toolName": "list-outlook-categories",
+    "scopes": ["MailboxSettings.Read"],
+    "llmTip": "Use this exact tool when the user asks for Outlook categories, Outlook tags, mail categories, colored labels, or the master category list. It lists the user's Outlook categories (colored labels) used to tag messages, events, contacts, and tasks. Do not use list-mail-folders for categories/tags. Use update-mail-message with body { \"categories\": [\"Category Name\"] } to apply categories to an email."
+  },
+  {
+    "pathPattern": "/me/outlook/masterCategories",
+    "method": "post",
+    "toolName": "create-outlook-category",
+    "scopes": ["MailboxSettings.ReadWrite"],
+    "llmTip": "Creates a new Outlook category/tag. Body: { \"displayName\": \"Category Name\", \"color\": \"preset0\" }. Category names are case-sensitive when applied to messages."
+  },
+  {
     "pathPattern": "/me/mailFolders",
     "method": "get",
     "toolName": "list-mail-folders",
-    "scopes": ["Mail.Read"]
+    "scopes": ["Mail.Read"],
+    "llmTip": "Lists mail folders only. Do not use this for Outlook categories, tags, colored labels, or the master category list; use list-outlook-categories instead."
   },
   {
     "pathPattern": "/me/mailFolders/{mailFolder-id}/childFolders",
@@ -87,6 +102,13 @@
     "method": "post",
     "toolName": "move-mail-message",
     "scopes": ["Mail.ReadWrite"]
+  },
+  {
+    "pathPattern": "/me/messages/{message-id}",
+    "method": "patch",
+    "toolName": "update-mail-message",
+    "scopes": ["Mail.ReadWrite"],
+    "llmTip": "Updates properties on an existing Outlook email. To tag an email, patch categories with body { \"categories\": [\"Category Name\"] }. Graph replaces the full categories array, so read existing categories first when adding or removing a single category."
   },
   {
     "pathPattern": "/me/messages/{message-id}/attachments",
