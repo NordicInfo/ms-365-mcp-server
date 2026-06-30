@@ -36,6 +36,7 @@ const endpointsData = JSON.parse(
 const TOOL_REGISTRATION_PRIORITY: Record<string, number> = {
   'list-outlook-categories': -20,
   'create-outlook-category': -19,
+  'update-outlook-category': -18,
 };
 
 type TextContent = {

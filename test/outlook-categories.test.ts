@@ -62,6 +62,9 @@ describe('Outlook categories', () => {
     expect(toolNames.indexOf('create-outlook-category')).toBeLessThan(
       toolNames.indexOf('list-mail-folders')
     );
+    expect(toolNames.indexOf('update-outlook-category')).toBeLessThan(
+      toolNames.indexOf('list-mail-folders')
+    );
   });
 
   it('lists Outlook categories from the master category list', async () => {
@@ -90,6 +93,25 @@ describe('Outlook categories', () => {
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({ displayName: 'Finance', color: 'preset0' }),
+      })
+    );
+  });
+
+  it('updates Outlook category colors in the master category list', async () => {
+    const handler = getToolHandler('update-outlook-category');
+
+    await handler({
+      outlookCategoryId: 'category-123',
+      body: {
+        color: 'preset7',
+      },
+    });
+
+    expect(mockGraphClient.graphRequest).toHaveBeenCalledWith(
+      '/me/outlook/masterCategories/category-123',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ color: 'preset7' }),
       })
     );
   });

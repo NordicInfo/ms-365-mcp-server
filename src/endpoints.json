@@ -19,7 +19,14 @@
     "method": "post",
     "toolName": "create-outlook-category",
     "scopes": ["MailboxSettings.ReadWrite"],
-    "llmTip": "Creates a new Outlook category/tag. Body: { \"displayName\": \"Category Name\", \"color\": \"preset0\" }. Category names are case-sensitive when applied to messages."
+    "llmTip": "Creates a new Outlook category/tag. Always include a visible color preset so Outlook clients display it reliably. Body: { \"displayName\": \"Category Name\", \"color\": \"preset0\" }. Do not use color \"None\" unless the user explicitly asks for no color. Category names are case-sensitive when applied to messages."
+  },
+  {
+    "pathPattern": "/me/outlook/masterCategories/{outlookCategory-id}",
+    "method": "patch",
+    "toolName": "update-outlook-category",
+    "scopes": ["MailboxSettings.ReadWrite"],
+    "llmTip": "Updates an existing Outlook category/tag. Microsoft Graph only allows changing the color, not renaming the displayName. Body: { \"color\": \"preset0\" }. Use list-outlook-categories first to find the category id. Do not use color \"None\" unless the user explicitly asks for no color."
   },
   {
     "pathPattern": "/me/mailFolders",
