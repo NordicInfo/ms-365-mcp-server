@@ -65,6 +65,9 @@ describe('Outlook categories', () => {
     expect(toolNames.indexOf('update-outlook-category')).toBeLessThan(
       toolNames.indexOf('list-mail-folders')
     );
+    expect(toolNames.indexOf('delete-outlook-category')).toBeLessThan(
+      toolNames.indexOf('list-mail-folders')
+    );
   });
 
   it('lists Outlook categories from the master category list', async () => {
@@ -113,6 +116,19 @@ describe('Outlook categories', () => {
         method: 'PATCH',
         body: JSON.stringify({ color: 'preset7' }),
       })
+    );
+  });
+
+  it('deletes Outlook categories from the master category list', async () => {
+    const handler = getToolHandler('delete-outlook-category');
+
+    await handler({
+      outlookCategoryId: 'category-123',
+    });
+
+    expect(mockGraphClient.graphRequest).toHaveBeenCalledWith(
+      '/me/outlook/masterCategories/category-123',
+      expect.objectContaining({ method: 'DELETE' })
     );
   });
 });

@@ -29,6 +29,13 @@
     "llmTip": "Updates an existing Outlook category/tag. Microsoft Graph only allows changing the color, not renaming the displayName. Body: { \"color\": \"preset0\" }. Use list-outlook-categories first to find the category id. Do not use color \"None\" unless the user explicitly asks for no color."
   },
   {
+    "pathPattern": "/me/outlook/masterCategories/{outlookCategory-id}",
+    "method": "delete",
+    "toolName": "delete-outlook-category",
+    "scopes": ["MailboxSettings.ReadWrite"],
+    "llmTip": "Deletes an Outlook category/tag from the user's master category list. Use list-outlook-categories first to find the category id. Deleting a category does not automatically remove that category string from items that already have it assigned; update affected messages/events separately if cleanup is required."
+  },
+  {
     "pathPattern": "/me/mailFolders",
     "method": "get",
     "toolName": "list-mail-folders",
