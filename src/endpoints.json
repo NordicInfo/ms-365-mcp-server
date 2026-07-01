@@ -15,27 +15,6 @@
     "llmTip": "Use this exact tool when the user asks for Outlook categories, Outlook tags, mail categories, colored labels, or the master category list. It lists the user's Outlook categories (colored labels) used to tag messages, events, contacts, and tasks. Do not use list-mail-folders for categories/tags. Use update-mail-message with body { \"categories\": [\"Category Name\"] } to apply categories to an email."
   },
   {
-    "pathPattern": "/me/outlook/masterCategories",
-    "method": "post",
-    "toolName": "create-outlook-category",
-    "scopes": ["MailboxSettings.ReadWrite"],
-    "llmTip": "Creates a new Outlook category/tag. Always include a visible color preset so Outlook clients display it reliably. Body: { \"displayName\": \"Category Name\", \"color\": \"preset0\" }. Do not use color \"None\" unless the user explicitly asks for no color. Category names are case-sensitive when applied to messages."
-  },
-  {
-    "pathPattern": "/me/outlook/masterCategories/{outlookCategory-id}",
-    "method": "patch",
-    "toolName": "update-outlook-category",
-    "scopes": ["MailboxSettings.ReadWrite"],
-    "llmTip": "Updates an existing Outlook category/tag. Microsoft Graph only allows changing the color, not renaming the displayName. Body: { \"color\": \"preset0\" }. Use list-outlook-categories first to find the category id. Do not use color \"None\" unless the user explicitly asks for no color."
-  },
-  {
-    "pathPattern": "/me/outlook/masterCategories/{outlookCategory-id}",
-    "method": "delete",
-    "toolName": "delete-outlook-category",
-    "scopes": ["MailboxSettings.ReadWrite"],
-    "llmTip": "Deletes an Outlook category/tag from the user's master category list. Use list-outlook-categories first to find the category id. Deleting a category does not automatically remove that category string from items that already have it assigned; update affected messages/events separately if cleanup is required."
-  },
-  {
     "pathPattern": "/me/mailFolders",
     "method": "get",
     "toolName": "list-mail-folders",
