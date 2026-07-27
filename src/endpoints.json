@@ -88,7 +88,8 @@
     "pathPattern": "/me/messages",
     "method": "post",
     "toolName": "create-draft-email",
-    "scopes": ["Mail.ReadWrite"]
+    "scopes": ["Mail.ReadWrite"],
+    "llmTip": "Use this tool ONLY for brand-new standalone emails. To reply, reply-all, or forward an EXISTING email, ALWAYS use create-reply-draft, create-reply-all-draft, or create-forward-draft with the message id instead, so the quoted thread history is preserved underneath. Never fake a 'Re:'/'Fw:' subject with this tool to answer an existing thread - the draft will not contain the earlier messages."
   },
   {
     "pathPattern": "/me/messages/{message-id}/move",
@@ -101,7 +102,7 @@
     "method": "patch",
     "toolName": "update-mail-message",
     "scopes": ["Mail.ReadWrite"],
-    "llmTip": "Updates properties on an existing Outlook email. To tag an email, patch categories with body { \"categories\": [\"Category Name\"] }. Graph replaces the full categories array, so read existing categories first when adding or removing a single category."
+    "llmTip": "Updates properties on an existing Outlook email. To EDIT AN EXISTING DRAFT (change body, subject, or recipients), PATCH the draft's message id with only the fields to change - do NOT create a new draft; reuse the id returned when the draft was created. When updating a draft body, set body.contentType to HTML (plain-text paragraphs are automatically converted). To tag an email, patch categories with body { \"categories\": [\"Category Name\"] }. Graph replaces the full categories array, so read existing categories first when adding or removing a single category."
   },
   {
     "pathPattern": "/me/messages/{message-id}/attachments",
