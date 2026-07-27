@@ -58,6 +58,16 @@ vi.mock('../src/generated/client.js', () => ({
           { name: 'body', type: 'Body', schema: z.any() },
         ],
       },
+      {
+        alias: 'update-mail-message',
+        method: 'patch',
+        path: '/me/messages/:messageId',
+        description: 'Update mail message',
+        parameters: [
+          { name: 'messageId', type: 'Path', schema: z.string() },
+          { name: 'body', type: 'Body', schema: z.any() },
+        ],
+      },
     ],
   },
 }));
@@ -257,8 +267,8 @@ describe('Mail Body Formatting', () => {
       body: {
         Message: {
           body: {
-            contentType: 'Text',
-            content: 'Reply all text',
+            contentType: 'HTML',
+            content: 'Reply all\n<strong>team</strong>\nRegards',
           },
         },
       },
@@ -267,7 +277,7 @@ describe('Mail Body Formatting', () => {
     const calls = getMakeRequestCalls();
     expect(calls[0][0]).toBe('/me/messages/message-123/createReplyAll');
     expect(JSON.parse(calls[2][1].body).body.content).toBe(
-      '<p>Reply all text</p><br><blockquote>Original all</blockquote>'
+      'Reply all<br>\n<strong>team</strong><br>\nRegards<br><blockquote>Original all</blockquote>'
     );
   });
 
@@ -289,8 +299,8 @@ describe('Mail Body Formatting', () => {
         Message: {
           toRecipients: [{ emailAddress: { address: 'alex@example.com' } }],
           body: {
-            contentType: 'Text',
-            content: 'Please see below.',
+            contentType: 'HTML',
+            content: 'Please see\n<em>below</em>\nAlex',
           },
         },
       },
@@ -303,6 +313,9 @@ describe('Mail Body Formatting', () => {
       },
     });
     expect(getMakeRequestCalls()[0][0]).toBe('/me/messages/message-123/createForward');
+    expect(JSON.parse(getMakeRequestCalls()[2][1].body).body.content).toBe(
+      'Please see<br>\n<em>below</em><br>\nAlex<br><div>Forwarded history</div>'
+    );
   });
 
   it('converts plain-text generated reply content to HTML before patching', async () => {
@@ -378,13 +391,13 @@ describe('Mail Body Formatting', () => {
     await handler({
       messageId: 'message-123',
       body: {
-        Comment: 'Generated from comment',
+        Comment: 'Generated\n<strong>from comment</strong>\nRegards',
       },
     });
 
     expect(JSON.parse(getMakeRequestCalls()[0][1].body)).toEqual({});
     expect(JSON.parse(getMakeRequestCalls()[2][1].body).body.content).toBe(
-      '<p>Generated from comment</p><br><div>History</div>'
+      'Generated<br>\n<strong>from comment</strong><br>\nRegards<br><div>History</div>'
     );
   });
 
@@ -422,5 +435,179 @@ describe('Mail Body Formatting', () => {
 
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('did not return a draft id');
+  });
+
+  it('converts bare newlines to <br> in mixed HTML and plain-text draft bodies', async () => {
+    const handler = getToolHandler('create-draft-email');
+
+    await handler({
+      body: {
+        subject: 'Follow-up',
+        body: {
+          contentType: 'HTML',
+          content: 'Hello Armash,\n\nFollow up below:\n<ul><li>item one</li></ul>\n\nBest regards',
+        },
+      },
+    });
+
+    const requestBody = getRequestBody();
+    expect(requestBody.body.contentType).toBe('HTML');
+    expect(requestBody.body.content).toBe(
+      'Hello Armash,<br>\n<br>\nFollow up below:\n<ul><li>item one</li></ul>\n<br>\nBest regards'
+    );
+  });
+
+  it('preserves visible newlines where plain text meets an HTML tag', async () => {
+    const handler = getToolHandler('create-draft-email');
+
+    await handler({
+      body: {
+        subject: 'Mixed boundaries',
+        body: {
+          contentType: 'HTML',
+          content: 'Hello\n<strong>Details</strong><em>Regards</em>\nAlex',
+        },
+      },
+    });
+
+    const requestBody = getRequestBody();
+    expect(requestBody.body.content).toBe(
+      'Hello<br>\n<strong>Details</strong><em>Regards</em><br>\nAlex'
+    );
+  });
+
+  it('preserves a newline between adjacent inline HTML elements', async () => {
+    const handler = getToolHandler('create-draft-email');
+
+    await handler({
+      body: {
+        subject: 'Inline boundaries',
+        body: {
+          contentType: 'HTML',
+          content: '<strong>First</strong>\n<em>Second</em>',
+        },
+      },
+    });
+
+    const requestBody = getRequestBody();
+    expect(requestBody.body.content).toBe('<strong>First</strong><br>\n<em>Second</em>');
+  });
+
+  it('does not insert break tags inside HTML markup or preformatted content', async () => {
+    const handler = getToolHandler('create-draft-email');
+
+    await handler({
+      body: {
+        subject: 'Valid HTML',
+        body: {
+          contentType: 'HTML',
+          content: '<a\n href="https://example.com?q=a>b">Link</a><pre>line one\nline two</pre>',
+        },
+      },
+    });
+
+    const requestBody = getRequestBody();
+    expect(requestBody.body.content).toBe(
+      '<a\n href="https://example.com?q=a>b">Link</a><pre>line one\nline two</pre>'
+    );
+  });
+
+  it('leaves multi-line HTML bodies without bare newlines untouched', async () => {
+    const handler = getToolHandler('create-draft-email');
+
+    await handler({
+      body: {
+        subject: 'Status update',
+        body: {
+          contentType: 'HTML',
+          content: '<p>Hi Alex,</p>\n\n<p>The shipment is ready.</p>\n<ul>\n<li>one</li>\n</ul>',
+        },
+      },
+    });
+
+    const requestBody = getRequestBody();
+    expect(requestBody.body.content).toBe(
+      '<p>Hi Alex,</p>\n\n<p>The shipment is ready.</p>\n<ul>\n<li>one</li>\n</ul>'
+    );
+  });
+
+  it('converts bare newlines in generated reply content before merging with quoted history', async () => {
+    const handler = getToolHandler('create-reply-draft');
+
+    (mockGraphClient.makeRequest as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({ id: 'draft-1' })
+      .mockResolvedValueOnce({
+        id: 'draft-1',
+        body: { contentType: 'HTML', content: '<div>History</div>' },
+      })
+      .mockResolvedValueOnce({ message: 'OK!' })
+      .mockResolvedValueOnce({ id: 'draft-1' });
+
+    await handler({
+      messageId: 'message-123',
+      body: {
+        Message: {
+          body: {
+            contentType: 'HTML',
+            content: 'Thanks,\n\nSee below\n<ul><li>x</li></ul>',
+          },
+        },
+      },
+    });
+
+    expect(JSON.parse(getMakeRequestCalls()[2][1].body).body.content).toBe(
+      'Thanks,<br>\n<br>\nSee below\n<ul><li>x</li></ul><br><div>History</div>'
+    );
+  });
+
+  it('converts plain-text bodies to HTML when updating a draft via update-mail-message', async () => {
+    const handler = getToolHandler('update-mail-message');
+
+    await handler({
+      messageId: 'message-123',
+      body: {
+        body: {
+          contentType: 'Text',
+          content: 'Hello,\n\nUpdated line.',
+        },
+      },
+    });
+
+    const requestBody = getRequestBody();
+    expect(requestBody.body.contentType).toBe('HTML');
+    expect(requestBody.body.content).toBe('<p>Hello,</p><p>Updated line.</p>');
+  });
+
+  it('converts bare newlines in mixed HTML and plain-text bodies via update-mail-message', async () => {
+    const handler = getToolHandler('update-mail-message');
+
+    await handler({
+      messageId: 'message-123',
+      body: {
+        body: {
+          contentType: 'HTML',
+          content: 'Hi,\n\nUpdated:\n<ul><li>point</li></ul>\n\nRegards',
+        },
+      },
+    });
+
+    const requestBody = getRequestBody();
+    expect(requestBody.body.content).toBe(
+      'Hi,<br>\n<br>\nUpdated:\n<ul><li>point</li></ul>\n<br>\nRegards'
+    );
+  });
+
+  it('leaves update-mail-message bodies without a message body untouched', async () => {
+    const handler = getToolHandler('update-mail-message');
+
+    await handler({
+      messageId: 'message-123',
+      body: {
+        categories: ['Newsletters'],
+      },
+    });
+
+    const requestBody = getRequestBody();
+    expect(requestBody).toEqual({ categories: ['Newsletters'] });
   });
 });

@@ -96,6 +96,7 @@ const OUTGOING_MAIL_MESSAGE_TOOLS = new Set([
   'create-forward-draft',
   'create-reply-draft',
   'create-reply-all-draft',
+  'update-mail-message',
 ]);
 
 const THREAD_PRESERVING_DRAFT_TOOLS = new Set([
@@ -158,6 +159,143 @@ function plainTextToHtml(value: string): string {
     .join('');
 }
 
+const PREFORMATTED_HTML_TAGS = new Set(['pre', 'script', 'style', 'textarea']);
+const BLOCK_HTML_TAGS = new Set([
+  'address',
+  'blockquote',
+  'br',
+  'div',
+  'dl',
+  'fieldset',
+  'figure',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'hr',
+  'li',
+  'ol',
+  'p',
+  'pre',
+  'table',
+  'tbody',
+  'td',
+  'tfoot',
+  'th',
+  'thead',
+  'tr',
+  'ul',
+]);
+
+function findHtmlTagEnd(value: string, start: number): number {
+  if (value.startsWith('<!--', start)) {
+    const commentEnd = value.indexOf('-->', start + 4);
+    return commentEnd === -1 ? -1 : commentEnd + 2;
+  }
+
+  let quote: '"' | "'" | undefined;
+
+  for (let index = start + 1; index < value.length; index += 1) {
+    const character = value[index];
+
+    if (quote) {
+      if (character === quote) quote = undefined;
+      continue;
+    }
+
+    if (character === '"' || character === "'") {
+      quote = character;
+    } else if (character === '>') {
+      return index;
+    }
+  }
+
+  return -1;
+}
+
+function findNextHtmlTag(value: string, start: number): number {
+  let candidate = value.indexOf('<', start);
+
+  while (candidate !== -1) {
+    const remainder = value.slice(candidate);
+    const looksLikeTag = /^(?:<!--|<![A-Z]|<\?|<\/?[A-Z][\w:-]*(?:\s|\/?>))/i.test(remainder);
+
+    if (looksLikeTag && findHtmlTagEnd(value, candidate) !== -1) return candidate;
+    candidate = value.indexOf('<', candidate + 1);
+  }
+
+  return -1;
+}
+
+function isBlockHtmlTag(tag: string | undefined): boolean {
+  const tagName = tag?.match(/^<\s*\/?\s*([a-z][\w:-]*)\b/i)?.[1]?.toLowerCase();
+  return tagName ? BLOCK_HTML_TAGS.has(tagName) : false;
+}
+
+function convertTextNodeNewlines(
+  text: string,
+  previousTag: string | undefined,
+  nextTag: string | undefined
+): string {
+  if (!text.trim()) {
+    const isBetweenInlineTags =
+      previousTag && nextTag && !isBlockHtmlTag(previousTag) && !isBlockHtmlTag(nextTag);
+
+    return isBetweenInlineTags ? text.replace(/\n/g, '<br>\n') : text;
+  }
+
+  return text.replace(/\n/g, (newline, index: number) => {
+    if (index === 0 && isBlockHtmlTag(previousTag)) return newline;
+    if (index === text.length - 1 && isBlockHtmlTag(nextTag)) return newline;
+    return '<br>\n';
+  });
+}
+
+// HTML rendering collapses newlines in text nodes. Convert those newlines to explicit breaks,
+// while leaving tag syntax, formatting-only whitespace, and preformatted elements untouched.
+function convertBareNewlinesToBr(value: string): string {
+  const normalized = value.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const lowerCaseValue = normalized.toLowerCase();
+  let result = '';
+  let cursor = 0;
+  let preformattedTag: string | undefined;
+  let previousTag: string | undefined;
+
+  while (cursor < normalized.length) {
+    if (preformattedTag) {
+      const closingTag = lowerCaseValue.indexOf(`</${preformattedTag}`, cursor);
+
+      if (closingTag === -1) return result + normalized.slice(cursor);
+
+      result += normalized.slice(cursor, closingTag);
+      cursor = closingTag;
+      preformattedTag = undefined;
+    }
+
+    const tagStart = findNextHtmlTag(normalized, cursor);
+    const textEnd = tagStart === -1 ? normalized.length : tagStart;
+    const text = normalized.slice(cursor, textEnd);
+    const tagEnd = tagStart === -1 ? -1 : findHtmlTagEnd(normalized, tagStart);
+    const tag = tagStart === -1 ? undefined : normalized.slice(tagStart, tagEnd + 1);
+
+    result += convertTextNodeNewlines(text, previousTag, tag);
+    if (tagStart === -1) break;
+
+    result += tag;
+    cursor = tagEnd + 1;
+    previousTag = tag;
+
+    const openingTag = tag?.match(/^<\s*([a-z][\w:-]*)\b/i)?.[1]?.toLowerCase();
+    if (openingTag && PREFORMATTED_HTML_TAGS.has(openingTag) && !tag.endsWith('/>')) {
+      preformattedTag = openingTag;
+    }
+  }
+
+  return result;
+}
+
 function encodeGraphId(id: string): string {
   return encodeURIComponent(id).replace(/%3D/g, '=');
 }
@@ -193,7 +331,9 @@ function normalizeMessageBodyToHtml(message: Record<string, unknown>): Record<st
   }
 
   const content = messageBody.content;
-  const htmlContent = containsHtmlMarkup(content) ? content : plainTextToHtml(content);
+  const htmlContent = containsHtmlMarkup(content)
+    ? convertBareNewlinesToBr(content)
+    : plainTextToHtml(content);
 
   return {
     ...message,
@@ -240,7 +380,9 @@ function extractGeneratedDraftHtml(body: unknown): string | undefined {
       const content = contentEntry?.[1];
 
       if (typeof content === 'string' && content.trim()) {
-        return containsHtmlMarkup(content) ? content : plainTextToHtml(content);
+        return containsHtmlMarkup(content)
+          ? convertBareNewlinesToBr(content)
+          : plainTextToHtml(content);
       }
     }
   }
@@ -249,7 +391,9 @@ function extractGeneratedDraftHtml(body: unknown): string | undefined {
   const comment = commentEntry?.[1];
 
   if (typeof comment === 'string' && comment.trim()) {
-    return containsHtmlMarkup(comment) ? comment : plainTextToHtml(comment);
+    return containsHtmlMarkup(comment)
+      ? convertBareNewlinesToBr(comment)
+      : plainTextToHtml(comment);
   }
 
   return undefined;
